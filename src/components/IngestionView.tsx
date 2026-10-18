@@ -108,7 +108,7 @@ export const IngestionView: React.FC<IngestionViewProps> = ({
             Zero-Upload Cloud Pub/Sub Stream & On-Demand CSV Validator
           </h2>
           <p className="text-sm text-slate-600 leading-relaxed">
-            In production across HDFC Bank, ICICI Bank, IOB, and DBS, alerts stream continuously via Google Cloud Pub/Sub without manual file uploads. For offline audits or benchmark testing, upload or edit a synthetic CSV below to inspect ISO-8601 timestamp parsing, malformed-row rejection, prompt-injection sanitization, and traceable <code className="font-mono text-xs text-slate-800">EVT-*</code> ID assignment.
+            In production across GDFC Bank, ICICX Bank, National Overseas Bank (NOB), Smart Bank of India (SBI), and DGBS Bank, alerts stream continuously via Google Cloud Pub/Sub without manual file uploads. For offline audits or benchmark testing, upload or edit a synthetic CSV below to inspect ISO-8601 timestamp parsing, malformed-row rejection, prompt-injection sanitization, and traceable <code className="font-mono text-xs text-slate-800">EVT-*</code> ID assignment.
           </p>
         </div>
 

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   INITIAL_CORRELATED_CASES,
 } from './data/syntheticScenarios.ts';
-import {
+import type {
   CaseStatus,
   CorrelatedCase,
   IngestionResult,
@@ -12,6 +12,10 @@ import { IngestionView } from './components/IngestionView.tsx';
 import { EvaluationView } from './components/EvaluationView.tsx';
 import { SpecificationsView } from './components/SpecificationsView.tsx';
 import {
+  LandingAndAuthView,
+  type AnalystSession,
+} from './components/LandingAndAuthView.tsx';
+import {
   Sparkles,
   CheckCircle2,
   ShieldAlert,
@@ -20,15 +24,35 @@ import {
   FileSearch,
   BookOpen,
   RefreshCw,
+  Copy,
+  Check,
+  ArrowRight,
+  LogOut,
 } from 'lucide-react';
 
 type ActiveTab = 'triage' | 'ingestion' | 'evaluation' | 'specs';
 type ScenarioFilter = 'all' | 'india_apac_scam' | 'deck_wireframe';
 type GcpContextTab = 'bigquery' | 'document_ai' | 'vertex_runbook';
 
-const STORAGE_KEY = 'sentinelflow_cases_v2';
+const STORAGE_KEY = 'sentinelflow_cases_v3';
+const SESSION_STORAGE_KEY = 'sentinelflow_session_v1';
 
 export default function App() {
+  const [session, setSession] = useState<AnalystSession | null>(() => {
+    try {
+      const saved = localStorage.getItem(SESSION_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed.email === 'string') {
+          return parsed;
+        }
+      }
+    } catch {
+      // Default to logged-out B2B landing page
+    }
+    return null;
+  });
+
   const [activeTab, setActiveTab] = useState<ActiveTab>('triage');
   const [cases, setCases] = useState<CorrelatedCase[]>(() => {
     try {
@@ -56,6 +80,8 @@ export default function App() {
   const [isSimulatingStream, setIsSimulatingStream] = useState<boolean>(false);
   const [streamBanner, setStreamBanner] = useState<string | null>(null);
   const [lastIngestion, setLastIngestion] = useState<IngestionResult | null>(null);
+  const [copiedScript, setCopiedScript] = useState<boolean>(false);
+  const [signedOutMessage, setSignedOutMessage] = useState<string | null>(null);
 
   useEffect(() => {
     try {
@@ -64,6 +90,36 @@ export default function App() {
       // Ignore storage quota issues
     }
   }, [cases]);
+
+  const handleLoginSuccess = (newSession: AnalystSession) => {
+    setSession(newSession);
+    setSignedOutMessage(null);
+    try {
+      localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(newSession));
+    } catch {
+      // Ignore storage quota issues
+    }
+  };
+
+  const handleLogout = () => {
+    const prevName = session?.name || 'Analyst';
+    const prevInst = session?.institution || 'BFSI SOC Desk';
+    const timeStr =
+      new Date().toLocaleTimeString('en-IN', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+      }) + ' IST';
+    setSignedOutMessage(
+      `Signed out ${prevName} (${prevInst}) at ${timeStr}. All HITL case dispositions and audit logs are preserved.`
+    );
+    setSession(null);
+    try {
+      localStorage.removeItem(SESSION_STORAGE_KEY);
+    } catch {
+      // Ignore storage issues
+    }
+  };
 
   const filteredCases = cases.filter((c) => {
     const matchesScenario =
@@ -78,7 +134,6 @@ export default function App() {
     filteredCases[0] ||
     cases[0];
 
-  // Calculate aggregate impact metrics
   const totalFundsAtRisk = cases.reduce(
     (sum, c) => sum + (c.amount_at_risk_inr || 0),
     0
@@ -99,12 +154,21 @@ export default function App() {
     setSelectedCaseId(caseId);
     setHighlightedEventId(null);
     setBriefError(null);
+    setCopiedScript(false);
     const found = cases.find((c) => c.case_id === caseId);
     if (found && !found.document_ai_evidence && gcpTab === 'document_ai') {
       setGcpTab('bigquery');
     } else if (found?.document_ai_evidence) {
       setGcpTab('document_ai');
     }
+  };
+
+  const handleCopyScript = () => {
+    if (!activeCase) return;
+    const text = activeCase.gemini_brief.elderly_deescalation_script.join('\n\n');
+    navigator.clipboard?.writeText(text);
+    setCopiedScript(true);
+    setTimeout(() => setCopiedScript(false), 2000);
   };
 
   const handleUpdateCaseStatus = (newStatus: CaseStatus) => {
@@ -123,6 +187,10 @@ export default function App() {
     const noteText =
       analystNote.trim() || statusActionDescriptions[newStatus];
 
+    const activeAnalystLabel = session
+      ? `${session.name} (${session.institution})`
+      : 'Shruthi Jha & Sanjay (HITL Security Analysts)';
+
     const updatedCases = cases.map((c) => {
       if (c.case_id !== activeCase.case_id) return c;
       const savedAmount =
@@ -136,10 +204,11 @@ export default function App() {
         audit_trail: [
           {
             id: `AUD-${Date.now()}`,
-            timestamp: new Date().toLocaleTimeString('en-IN', {
-              hour12: false,
-            }) + ' IST',
-            analyst: 'Sanjay T (SOC / Fraud Lead)',
+            timestamp:
+              new Date().toLocaleTimeString('en-IN', {
+                hour12: false,
+              }) + ' IST',
+            analyst: activeAnalystLabel,
             previous_status: c.status,
             new_status: newStatus,
             note: noteText,
@@ -209,7 +278,7 @@ export default function App() {
           setLastIngestion(data.ingestion);
           setActiveTab('triage');
           setStreamBanner(
-            `Cloud Pub/Sub Live Stream correlated new case ${data.newCase.case_id} (${data.newCase.customer_name} · ₹${(data.newCase.amount_at_risk_inr || 0).toLocaleString('en-IN')}) — zero manual CSV upload needed.`
+            `Cloud Pub/Sub Live Stream correlated new case ${data.newCase.case_id} (${data.newCase.bank_name} · ${data.newCase.customer_name} · ₹${(data.newCase.amount_at_risk_inr || 0).toLocaleString('en-IN')}) — zero manual CSV upload needed.`
           );
         }
       }
@@ -236,8 +305,54 @@ export default function App() {
     localStorage.removeItem(STORAGE_KEY);
     setCases(INITIAL_CORRELATED_CASES);
     setSelectedCaseId('CASE-101');
-    setStreamBanner('Reset workbench to initial HDFC / ICICI / IOB / DBS & Deck benchmark cases.');
+    setScenarioFilter('all');
+    setSeverityFilter('All');
+    setStreamBanner(
+      'Reset workbench to initial GDFC Bank, ICICX Bank, National Overseas Bank (NOB), Smart Bank of India (SBI), and DGBS benchmark cases.'
+    );
   };
+
+  const quickScenarios = [
+    {
+      caseId: 'CASE-101',
+      tag: 'GDFC Bank / National Overseas Bank (NOB)',
+      title: 'Digital Arrest Senior FD Break',
+      victim: 'R. Venkataraman (72y) · ₹28.5L RTGS',
+      risk: '96/100 High',
+    },
+    {
+      caseId: 'CASE-102',
+      tag: 'ICICX Bank / GDFC Bank',
+      title: 'Fake VIP Stock & IPO Escrow Scam',
+      victim: 'Sunita Deshmukh (64y) · ₹14.2L IMPS',
+      risk: '88/100 High',
+    },
+    {
+      caseId: 'CASE-103',
+      tag: 'DGBS Bank / Smart Bank of India (SBI)',
+      title: 'Senior APK Account Takeover',
+      victim: 'K. Subramanian (68y) · ₹19.8L Remit',
+      risk: '92/100 High',
+    },
+    {
+      caseId: 'CASE-001',
+      tag: 'Slide 6 Reference Wireframe',
+      title: 'Post-Failure Unseen IP & Role Change',
+      victim: 'priya.nair · Core Treasury PAM',
+      risk: '90/100 High',
+    },
+  ];
+
+  // If no active analyst session, render the minimal B2B BFSI Enterprise Landing & Login Page
+  if (!session) {
+    return (
+      <LandingAndAuthView
+        onLoginSuccess={handleLoginSuccess}
+        signedOutMessage={signedOutMessage}
+        onClearSignedOutMessage={() => setSignedOutMessage(null)}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900">
@@ -303,21 +418,55 @@ export default function App() {
           </button>
         </nav>
 
-        {/* Zone 3: 1 primary action */}
+        {/* Zone 3: 1 primary action (Sign Out) */}
         <div className="flex items-center shrink-0">
           <button
             type="button"
-            onClick={handleSimulatePubSub}
-            disabled={isSimulatingStream}
-            className="px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+            onClick={handleLogout}
+            className="px-4 py-2 text-xs font-semibold text-slate-900 bg-white border border-slate-300 hover:bg-slate-100 rounded-lg transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
           >
-            {isSimulatingStream ? 'Streaming Alert...' : 'Stream Live Alert'}
+            <LogOut className="w-3.5 h-3.5" />
+            <span>Sign Out</span>
           </button>
         </div>
       </header>
 
       {/* Main 1440px Desktop Container */}
       <main className="flex-1 w-full max-w-[1440px] mx-auto px-6 py-6 space-y-6">
+        {/* Authenticated Analyst Session & Live Telemetry Action Bar */}
+        <div className="border border-slate-200 bg-white rounded-xl px-4 py-3 flex flex-wrap items-center justify-between gap-4 text-xs">
+          <div className="flex flex-wrap items-center gap-2 text-slate-600">
+            <span className="font-semibold text-slate-900">
+              Authenticated Analyst:
+            </span>
+            <span>{session.name}</span>
+            <span>·</span>
+            <span className="font-mono text-slate-700">{session.email}</span>
+            <span>·</span>
+            <span className="text-blue-800 font-medium">
+              {session.institution}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={handleSimulatePubSub}
+              disabled={isSimulatingStream}
+              className="px-3.5 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+            >
+              {isSimulatingStream ? 'Streaming Alert...' : 'Stream Live Alert'}
+            </button>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="px-3 py-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 border border-slate-200 rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+            >
+              Return to Product Page
+            </button>
+          </div>
+        </div>
+
         {/* Live Stream Notification Toast if triggered */}
         {streamBanner && (
           <div className="border border-blue-200 bg-blue-50/80 rounded-xl px-4 py-3 flex items-center justify-between gap-4 text-xs text-blue-950">
@@ -337,6 +486,89 @@ export default function App() {
 
         {activeTab === 'triage' && (
           <>
+            {/* Interactive 7-Step Process Flow Bar (Slide 5 Architecture Made Intuitive) */}
+            <section className="border border-slate-200 bg-white rounded-xl p-4 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                <div className="font-semibold text-slate-900">
+                  How SentinelFlow Works — 7-Step Explainable Triage Pipeline
+                </div>
+                <div className="flex flex-wrap items-center gap-4 text-[11px] text-slate-600">
+                  <span>
+                    <strong className="text-blue-700">Steps 2–4 & 6:</strong> Deterministic Rules (Code)
+                  </span>
+                  <span>·</span>
+                  <span>
+                    <strong className="text-violet-700">Step 5:</strong> Gemini on Vertex AI (Explanation Only)
+                  </span>
+                  <span>·</span>
+                  <span>
+                    <strong className="text-emerald-700">Step 1 & 7:</strong> Human Analyst (HITL Control)
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
+                {[
+                  {
+                    step: '1. Ingest Alerts',
+                    sub: 'Pub/Sub or CSV',
+                    tone: 'border-emerald-200 bg-emerald-50/50 text-emerald-950',
+                    action: () => setActiveTab('ingestion'),
+                  },
+                  {
+                    step: '2. Normalize',
+                    sub: 'Parse time & EVT-* ID',
+                    tone: 'border-blue-200 bg-blue-50/50 text-blue-950',
+                    action: () => setActiveTab('ingestion'),
+                  },
+                  {
+                    step: '3. Correlate',
+                    sub: 'User · IP · Asset · 30m',
+                    tone: 'border-blue-200 bg-blue-50/50 text-blue-950',
+                    action: () => setActiveTab('triage'),
+                  },
+                  {
+                    step: '4. Score Severity',
+                    sub: 'Transparent rule pts',
+                    tone: 'border-blue-200 bg-blue-50/50 text-blue-950',
+                    action: () => setActiveTab('triage'),
+                  },
+                  {
+                    step: '5. Gemini Brief',
+                    sub: 'Schema JSON + Script',
+                    tone: 'border-violet-200 bg-violet-50/60 text-violet-950',
+                    action: () => setActiveTab('triage'),
+                  },
+                  {
+                    step: '6. Code Validator',
+                    sub: '100% EVT-* verified',
+                    tone: 'border-blue-200 bg-blue-50/50 text-blue-950',
+                    action: () => setActiveTab('evaluation'),
+                  },
+                  {
+                    step: '7. HITL Review',
+                    sub: 'Hold · Escalate · Save ₹',
+                    tone: 'border-emerald-200 bg-emerald-50/50 text-emerald-950',
+                    action: () => setActiveTab('triage'),
+                  },
+                ].map((item, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={item.action}
+                    className={`p-2.5 rounded-lg border text-left transition-colors hover:brightness-95 cursor-pointer ${item.tone}`}
+                  >
+                    <div className="text-xs font-bold whitespace-nowrap truncate">
+                      {item.step}
+                    </div>
+                    <div className="text-[11px] opacity-80 truncate mt-0.5">
+                      {item.sub}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </section>
+
             {/* Full-Width 4-Column BFSI Protection & Triage Summary Strip */}
             <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="border border-slate-200 bg-white rounded-xl p-5 space-y-1">
@@ -355,13 +587,13 @@ export default function App() {
 
               <div className="border border-slate-200 bg-white rounded-xl p-5 space-y-1">
                 <div className="text-xs text-slate-500">
-                  Elderly & Retail Funds at Risk
+                  Elderly & Retail Funds Monitored
                 </div>
                 <div className="text-2xl font-bold font-mono tabular-nums text-slate-900">
                   ₹{(totalFundsAtRisk / 100000).toFixed(2)} Lakh
                 </div>
                 <div className="text-xs text-slate-500">
-                  Digital Arrest FD breaks · VIP Trading · Remittances
+                  GDFC · NOB · ICICX · Smart Bank of India (SBI) · DGBS
                 </div>
               </div>
 
@@ -373,7 +605,7 @@ export default function App() {
                   ₹{(totalFundsSafeguarded / 100000).toFixed(2)} Lakh
                 </div>
                 <div className="text-xs text-slate-500">
-                  {seniorCasesProtected} Senior citizen account(s) under protective hold
+                  {seniorCasesProtected} Senior citizen account(s) protected via HITL
                 </div>
               </div>
 
@@ -390,95 +622,132 @@ export default function App() {
               </div>
             </section>
 
-            {/* Scenario Preset & Filter Toolbar */}
-            <section className="border border-slate-200 bg-white rounded-xl p-4 flex flex-wrap items-center justify-between gap-4">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs font-semibold text-slate-700 mr-1">
-                  Scenario View:
-                </span>
-                <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-lg">
-                  <button
-                    type="button"
-                    onClick={() => setScenarioFilter('all')}
-                    className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
-                      scenarioFilter === 'all'
-                        ? 'bg-white text-slate-900 shadow-xs'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    All Cases ({cases.length})
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setScenarioFilter('india_apac_scam');
-                      setSelectedCaseId('CASE-101');
-                    }}
-                    className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
-                      scenarioFilter === 'india_apac_scam'
-                        ? 'bg-white text-slate-900 shadow-xs'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    India & APAC Bank Scams (HDFC / ICICI / IOB / DBS)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setScenarioFilter('deck_wireframe');
-                      setSelectedCaseId('CASE-001');
-                    }}
-                    className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
-                      scenarioFilter === 'deck_wireframe'
-                        ? 'bg-white text-slate-900 shadow-xs'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    Slide 6 Wireframe Cases (CASE-001..003)
-                  </button>
+            {/* One-Click Guided Scenario Launcher Cards */}
+            <section className="space-y-2.5">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="text-xs font-semibold text-slate-700">
+                  Quick-Select Demo Scenarios (Click any bank scenario below to inspect its correlated timeline & AI brief):
                 </div>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-lg">
-                  {(['All', 'High', 'Medium', 'Low'] as const).map((sev) => (
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex items-center gap-1 p-1 bg-slate-200/70 rounded-lg">
                     <button
-                      key={sev}
                       type="button"
-                      onClick={() => setSeverityFilter(sev)}
+                      onClick={() => setScenarioFilter('all')}
                       className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
-                        severityFilter === sev
+                        scenarioFilter === 'all'
                           ? 'bg-white text-slate-900 shadow-xs'
                           : 'text-slate-600 hover:text-slate-900'
                       }`}
                     >
-                      {sev}
+                      All ({cases.length})
                     </button>
-                  ))}
-                </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setScenarioFilter('india_apac_scam');
+                        setSelectedCaseId('CASE-101');
+                      }}
+                      className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                        scenarioFilter === 'india_apac_scam'
+                          ? 'bg-white text-slate-900 shadow-xs'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      Bank Scam Cases
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setScenarioFilter('deck_wireframe');
+                        setSelectedCaseId('CASE-001');
+                      }}
+                      className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                        scenarioFilter === 'deck_wireframe'
+                          ? 'bg-white text-slate-900 shadow-xs'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      Slide 6 Deck Cases
+                    </button>
+                  </div>
 
-                <button
-                  type="button"
-                  onClick={handleResetDemoState}
-                  className="px-3 py-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 border border-slate-200 rounded-lg whitespace-nowrap shrink-0 cursor-pointer"
-                >
-                  Reset Demo Queue
-                </button>
+                  <button
+                    type="button"
+                    onClick={handleResetDemoState}
+                    className="px-3 py-1 text-xs font-medium text-slate-600 hover:text-slate-900 bg-white border border-slate-200 rounded-lg whitespace-nowrap shrink-0 cursor-pointer"
+                  >
+                    Reset Demo
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                {quickScenarios.map((qs) => {
+                  const isCurrent = activeCase?.case_id === qs.caseId;
+                  return (
+                    <button
+                      key={qs.caseId}
+                      type="button"
+                      onClick={() => {
+                        setScenarioFilter('all');
+                        handleSelectCase(qs.caseId);
+                      }}
+                      className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer space-y-1 ${
+                        isCurrent
+                          ? 'bg-white border-blue-600 ring-2 ring-blue-600/20'
+                          : 'bg-white border-slate-200 hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between text-[11px] font-mono">
+                        <span className="font-bold text-blue-700">{qs.caseId}</span>
+                        <span className="text-red-700 font-semibold">{qs.risk}</span>
+                      </div>
+                      <div className="text-xs font-bold text-slate-900 truncate">
+                        {qs.title}
+                      </div>
+                      <div className="text-[11px] text-slate-600 truncate">
+                        {qs.tag}
+                      </div>
+                      <div className="text-[11px] font-mono text-slate-500 flex items-center justify-between pt-1">
+                        <span className="truncate">{qs.victim}</span>
+                        <ArrowRight className="w-3 h-3 text-slate-400 shrink-0" />
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             </section>
 
-            {/* 3-Pane Case Review Workspace (Matches Slide 6 Wireframe + Elderly Scam Safeguards) */}
+            {/* 3-Pane Case Review Workspace */}
             {activeCase && (
               <section className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
                 {/* LEFT PANE: Prioritized Cases Queue (3 columns) */}
                 <div className="lg:col-span-3 border border-slate-200 bg-white rounded-xl p-5 space-y-4">
                   <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-                    <h2 className="text-sm font-bold text-slate-900">
-                      Cases ({filteredCases.length})
-                    </h2>
-                    <span className="text-xs text-slate-500 font-mono">
-                      Priority Queue
-                    </span>
+                    <div>
+                      <h2 className="text-sm font-bold text-slate-900">
+                        Cases Queue ({filteredCases.length})
+                      </h2>
+                      <p className="text-[11px] text-slate-500">
+                        Filter by severity priority
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1 p-0.5 bg-slate-100 rounded-md">
+                      {(['All', 'High', 'Medium', 'Low'] as const).map((sev) => (
+                        <button
+                          key={sev}
+                          type="button"
+                          onClick={() => setSeverityFilter(sev)}
+                          className={`px-1.5 py-0.5 text-[10px] font-medium rounded transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                            severityFilter === sev
+                              ? 'bg-white text-slate-900 shadow-xs'
+                              : 'text-slate-600 hover:text-slate-900'
+                          }`}
+                        >
+                          {sev}
+                        </button>
+                      ))}
+                    </div>
                   </div>
 
                   <div className="divide-y divide-slate-200">
@@ -502,7 +771,6 @@ export default function App() {
                               : 'hover:bg-slate-50'
                           }`}
                         >
-                          {/* Unboxed metadata row with · separators */}
                           <div className="flex items-center justify-between text-xs">
                             <span className="font-mono font-bold text-slate-900">
                               {c.case_id}
@@ -522,7 +790,7 @@ export default function App() {
                             {c.title}
                           </div>
 
-                          <div className="text-xs text-slate-500 truncate">
+                          <div className="text-xs text-slate-600 truncate">
                             {c.bank_name}
                           </div>
 
@@ -553,6 +821,8 @@ export default function App() {
                             >
                               {c.status === 'Escalated'
                                 ? 'Escalated (Funds Saved)'
+                                : c.status === 'Reviewing'
+                                ? 'Reviewing (24h Hold)'
                                 : c.status}
                             </span>
                           </div>
@@ -564,50 +834,69 @@ export default function App() {
 
                 {/* CENTER PANE: Rule Signals (Deterministic), Timeline & GCP Enrichments (5 columns) */}
                 <div className="lg:col-span-5 border border-slate-200 bg-white rounded-xl p-5 space-y-6">
-                  {/* Case Context Header */}
-                  <div className="border-b border-slate-200 pb-4 space-y-1.5">
-                    <div className="flex flex-wrap items-center gap-1.5 text-xs text-slate-500 font-mono tabular-nums">
+                  {/* Intuitive Victim & Transfer Protection Status Header */}
+                  <div className="border-b border-slate-200 pb-4 space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-mono tabular-nums">
                       <span className="font-bold text-slate-900">
-                        {activeCase.case_id}
+                        {activeCase.case_id} · {activeCase.bank_name}
                       </span>
-                      <span>·</span>
-                      <span>{activeCase.bank_name}</span>
-                      <span>·</span>
-                      <span>{activeCase.time_window}</span>
+                      <span className="text-slate-500">
+                        {activeCase.time_window}
+                      </span>
                     </div>
-                    <h2 className="text-lg font-bold text-slate-900">
+
+                    <h2 className="text-lg font-bold text-slate-900 leading-snug">
                       {activeCase.title}
                     </h2>
-                    <div className="text-xs text-slate-600 flex flex-wrap items-center gap-1.5">
-                      <span>
-                        Customer:{' '}
-                        <strong className="text-slate-900">
-                          {activeCase.customer_name}
-                        </strong>{' '}
-                        ({activeCase.customer_age} yrs
-                        {activeCase.is_senior_citizen
-                          ? ' · Senior Citizen Protection Tier'
-                          : ''}
-                        )
-                      </span>
-                      <span>·</span>
-                      <span className="font-mono tabular-nums">
-                        Amount at Risk:{' '}
-                        <strong className="text-red-700">
-                          ₹{activeCase.amount_at_risk_inr.toLocaleString('en-IN')}
-                        </strong>
-                      </span>
+
+                    {/* Dynamic Customer & Money Safeguard Banner */}
+                    <div
+                      className={`p-3 rounded-lg border text-xs flex flex-wrap items-center justify-between gap-2 ${
+                        activeCase.status === 'Escalated'
+                          ? 'bg-emerald-50 border-emerald-200 text-emerald-950'
+                          : activeCase.status === 'Reviewing'
+                          ? 'bg-blue-50 border-blue-200 text-blue-950'
+                          : activeCase.amount_at_risk_inr > 0
+                          ? 'bg-red-50/70 border-red-200 text-red-950'
+                          : 'bg-slate-50 border-slate-200 text-slate-800'
+                      }`}
+                    >
+                      <div>
+                        <span className="font-semibold">
+                          Customer: {activeCase.customer_name} ({activeCase.customer_age}y
+                          {activeCase.is_senior_citizen ? ' · Senior Citizen' : ''})
+                        </span>
+                      </div>
+                      <div className="font-mono tabular-nums font-bold">
+                        {activeCase.amount_at_risk_inr > 0 ? (
+                          activeCase.status === 'Escalated' ? (
+                            <span className="text-emerald-700">
+                              SAVED: ₹{activeCase.amount_at_risk_inr.toLocaleString('en-IN')}
+                            </span>
+                          ) : activeCase.status === 'Reviewing' ? (
+                            <span className="text-blue-700">
+                              24H HOLD: ₹{activeCase.amount_at_risk_inr.toLocaleString('en-IN')}
+                            </span>
+                          ) : (
+                            <span className="text-red-700">
+                              AT RISK: ₹{activeCase.amount_at_risk_inr.toLocaleString('en-IN')}
+                            </span>
+                          )
+                        ) : (
+                          <span>No Outbound Transfer</span>
+                        )}
+                      </div>
                     </div>
                   </div>
 
                   {/* Rule Signals (Deterministic) */}
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <h3 className="text-xs font-bold uppercase tracking-wider text-blue-700">
-                        Rule signals (deterministic)
+                      <h3 className="text-xs font-bold text-blue-700">
+                        01. Rule Signals (Deterministic Code Evaluation)
                       </h3>
                       <span className="text-xs font-mono tabular-nums text-slate-600">
-                        Rule Score: <strong className="text-slate-900">{activeCase.rule_score}/100</strong> ({activeCase.severity})
+                        Score: <strong className="text-slate-900">{activeCase.rule_score}/100</strong> ({activeCase.severity})
                       </span>
                     </div>
 
@@ -633,11 +922,11 @@ export default function App() {
                   {/* Correlated Event Timeline */}
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700">
-                        Timeline ({activeCase.events.length} correlated events)
+                      <h3 className="text-xs font-bold text-slate-800">
+                        02. Correlated Event Timeline ({activeCase.events.length} Events)
                       </h3>
                       <span className="text-[11px] text-slate-500">
-                        Click any event or cited ID to inspect
+                        Click any event or cited ID to highlight
                       </span>
                     </div>
 
@@ -661,7 +950,7 @@ export default function App() {
                             }
                             className={`p-3 rounded-lg border transition-colors cursor-pointer space-y-1 ${
                               isHighlighted
-                                ? 'border-blue-600 bg-blue-50/70'
+                                ? 'border-blue-600 bg-blue-50/70 ring-1 ring-blue-600'
                                 : 'border-slate-200 bg-white hover:bg-slate-50'
                             }`}
                           >
@@ -711,9 +1000,9 @@ export default function App() {
 
                   {/* Google Cloud Context Enrichment Tabs (BigQuery, Document AI, Vertex Search) */}
                   <div className="border-t border-slate-200 pt-4 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold uppercase tracking-wider text-slate-700">
-                        Google Cloud Telemetry Enrichment
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="text-xs font-bold text-slate-800">
+                        03. Google Cloud Intelligence Enrichment
                       </span>
                       <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-lg">
                         {activeCase.document_ai_evidence && (
@@ -880,7 +1169,7 @@ export default function App() {
                     <div>
                       <div className="text-xs font-bold text-violet-700 flex items-center gap-1.5">
                         <Sparkles className="w-3.5 h-3.5" />
-                        <span>Gemini brief (AI-generated)</span>
+                        <span>Gemini Incident Brief (AI-Generated)</span>
                       </div>
                       <div className="text-[11px] text-slate-500 font-mono tabular-nums mt-0.5">
                         {activeCase.gemini_brief.generated_by} ·{' '}
@@ -901,7 +1190,7 @@ export default function App() {
                         }`}
                       />
                       <span>
-                        {isGeneratingBrief ? 'Synthesizing...' : 'Run Live Gemini'}
+                        {isGeneratingBrief ? 'Synthesizing...' : 'Re-Run Gemini'}
                       </span>
                     </button>
                   </div>
@@ -912,7 +1201,7 @@ export default function App() {
                     </div>
                   )}
 
-                  {/* Schema-Bound Brief Sections (Exact Slide 6 Structure + Elderly De-Escalation) */}
+                  {/* Schema-Bound Brief Sections */}
                   <div className="space-y-4 text-xs leading-relaxed">
                     <div>
                       <span className="font-bold text-slate-900">Pattern Diagnosis: </span>
@@ -931,7 +1220,7 @@ export default function App() {
                     {/* Interactive Evidence Event IDs */}
                     <div className="space-y-1.5">
                       <div className="font-bold text-slate-900">
-                        Evidence (Click ID to highlight in timeline):
+                        Verified Evidence IDs (Click to locate in timeline):
                       </div>
                       <div className="flex flex-wrap items-center gap-1.5">
                         {activeCase.gemini_brief.evidence_event_ids.map(
@@ -974,13 +1263,32 @@ export default function App() {
                       </span>
                     </div>
 
-                    {/* Empathetic Senior Citizen De-Escalation Script */}
+                    {/* Empathetic Senior Citizen De-Escalation Script with Copy Button */}
                     <div className="p-3.5 rounded-lg bg-emerald-50/70 border border-emerald-200 space-y-2">
-                      <div className="font-bold text-emerald-950 flex items-center gap-1.5">
-                        <PhoneCall className="w-3.5 h-3.5 text-emerald-700" />
-                        <span>
-                          Senior Citizen Welfare Call & De-Escalation Script
-                        </span>
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="font-bold text-emerald-950 flex items-center gap-1.5">
+                          <PhoneCall className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                          <span>
+                            Senior Citizen Welfare Call Script
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleCopyScript}
+                          className="px-2 py-1 text-[11px] font-medium text-emerald-900 bg-white/90 hover:bg-white border border-emerald-300 rounded flex items-center gap-1 whitespace-nowrap shrink-0 cursor-pointer"
+                        >
+                          {copiedScript ? (
+                            <>
+                              <Check className="w-3 h-3 text-emerald-700" />
+                              <span>Copied</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-3 h-3" />
+                              <span>Copy Script</span>
+                            </>
+                          )}
+                        </button>
                       </div>
                       <div className="space-y-1.5 text-emerald-900">
                         {activeCase.gemini_brief.elderly_deescalation_script.map(
@@ -995,7 +1303,7 @@ export default function App() {
 
                     <div>
                       <div className="font-bold text-slate-900 mb-1">
-                        Next steps:
+                        Recommended Safe Next Steps:
                       </div>
                       <ul className="space-y-1 text-slate-700 list-disc pl-4">
                         {activeCase.gemini_brief.recommended_next_steps.map(
@@ -1024,14 +1332,14 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* Analyst Status Controls (Matches Slide 6: Reviewing, Escalated, Dismissed) */}
+                  {/* HITL Security Analyst Status & Funds Protection Controls */}
                   <div className="border-t border-slate-200 pt-4 space-y-3">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold text-slate-900">
-                        Analyst status & Customer Protection Decision
+                        HITL Security Analyst Action
                       </span>
                       <span className="text-xs font-mono text-slate-600">
-                        Current: <strong>{activeCase.status}</strong>
+                        Status: <strong>{activeCase.status}</strong>
                       </span>
                     </div>
 
@@ -1043,43 +1351,55 @@ export default function App() {
                       className="w-full text-xs border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-600"
                     />
 
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-1 gap-2">
                       <button
                         type="button"
                         onClick={() => handleUpdateCaseStatus('Reviewing')}
-                        className={`py-2 px-3 text-xs font-semibold rounded-lg border transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                        className={`py-2 px-3 text-xs font-semibold rounded-lg border transition-colors flex items-center justify-between cursor-pointer ${
                           activeCase.status === 'Reviewing'
-                            ? 'bg-emerald-700 text-white border-emerald-700'
-                            : 'bg-white text-emerald-800 border-emerald-600 hover:bg-emerald-50'
+                            ? 'bg-blue-700 text-white border-blue-700'
+                            : 'bg-white text-blue-900 border-blue-600 hover:bg-blue-50'
                         }`}
                       >
-                        Reviewing
+                        <span className="whitespace-nowrap shrink-0">Reviewing</span>
+                        <span className="text-[11px] font-normal opacity-90 truncate ml-2">
+                          Place 24h Cooling Hold & Call Customer
+                        </span>
                       </button>
+
                       <button
                         type="button"
                         onClick={() => handleUpdateCaseStatus('Escalated')}
-                        className={`py-2 px-3 text-xs font-semibold rounded-lg border transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                        className={`py-2 px-3 text-xs font-semibold rounded-lg border transition-colors flex items-center justify-between cursor-pointer ${
                           activeCase.status === 'Escalated'
-                            ? 'bg-red-700 text-white border-red-700'
-                            : 'bg-white text-red-700 border-red-600 hover:bg-red-50'
+                            ? 'bg-emerald-700 text-white border-emerald-700'
+                            : 'bg-white text-emerald-900 border-emerald-600 hover:bg-emerald-50'
                         }`}
                       >
-                        Escalated
+                        <span className="whitespace-nowrap shrink-0">Escalated</span>
+                        <span className="text-[11px] font-normal opacity-90 truncate ml-2">
+                          Confirm Scam · Save Funds & Report 1930
+                        </span>
                       </button>
+
                       <button
                         type="button"
                         onClick={() => handleUpdateCaseStatus('Dismissed')}
-                        className={`py-2 px-3 text-xs font-semibold rounded-lg border transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                        className={`py-2 px-3 text-xs font-semibold rounded-lg border transition-colors flex items-center justify-between cursor-pointer ${
                           activeCase.status === 'Dismissed'
                             ? 'bg-slate-800 text-white border-slate-800'
                             : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
                         }`}
                       >
-                        Dismissed
+                        <span className="whitespace-nowrap shrink-0">Dismissed</span>
+                        <span className="text-[11px] font-normal opacity-90 truncate ml-2">
+                          Verified Legitimate · Release Transfer
+                        </span>
                       </button>
                     </div>
 
-                    {activeCase.status === 'Escalated' &&
+                    {(activeCase.status === 'Escalated' ||
+                      activeCase.status === 'Reviewing') &&
                       activeCase.amount_at_risk_inr > 0 && (
                         <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-xs text-emerald-950 flex items-start gap-2">
                           <ShieldAlert className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
@@ -1089,21 +1409,19 @@ export default function App() {
                               {activeCase.amount_at_risk_inr.toLocaleString(
                                 'en-IN'
                               )}{' '}
-                              Life Savings Safeguarded:
+                              Customer Savings Protected:
                             </strong>{' '}
-                            Outbound transfer held in cooling queue, customer de-escalated via welfare call, and mule account queued for 1930 CFCFRMS reporting.
+                            {activeCase.status === 'Escalated'
+                              ? 'Scam confirmed via HITL review. Outbound transfer permanently stopped in cooling queue and mule account reported to 1930 CFCFRMS.'
+                              : 'Outbound transfer paused in 24-hour Senior Cooling Queue while analyst completes welfare verification call.'}
                           </div>
                         </div>
                       )}
 
-                    <p className="text-[11px] italic text-slate-500">
-                      Prototype only: no external containment action is triggered automatically; human analyst controls every disposition.
-                    </p>
-
                     {/* Analyst Audit Trail */}
                     <div className="pt-2 border-t border-slate-200 space-y-2">
                       <div className="text-[11px] font-semibold text-slate-600">
-                        Case Audit Trail ({activeCase.audit_trail.length})
+                        HITL Case Audit Trail ({activeCase.audit_trail.length})
                       </div>
                       <div className="space-y-1.5 max-h-32 overflow-y-auto pr-1">
                         {activeCase.audit_trail.map((entry) => (
@@ -1145,10 +1463,10 @@ export default function App() {
       <footer className="border-t border-slate-200 bg-white mt-12 py-4 px-6">
         <div className="max-w-[1440px] mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
           <div>
-            SentinelFlow · AI-Assisted Security & BFSI Scam Triage Prototype · Team Linux C group (Sanjay T)
+            SentinelFlow · AI-Assisted Security & BFSI Scam Triage Prototype · Team Linux C group (Shruthi Jha and Sanjay)
           </div>
           <div>
-            Not a SIEM replacement or autonomous responder · All recommendations require human analyst review
+            Helpful AI assistant to prevent incidents and have HITL Security Analyst Review.
           </div>
         </div>
       </footer>

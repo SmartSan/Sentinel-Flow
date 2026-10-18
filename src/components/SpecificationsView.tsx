@@ -6,16 +6,16 @@ export const SpecificationsView: React.FC = () => {
     const specContent = `# SentinelFlow — Technical & Product Specification (BFSI Risk & Scam Mitigation)
 
 ## 1. Problem Statement & Core Principle
-- **Team**: Linux C group (Team Leader: Sanjay T)
-- **Problem**: AI-assisted triage of security and fraud alerts into explainable, evidence-backed incident briefs for BFSI risk and fraud mitigation—specifically targeting **Digital Arrest Scams**, **Fake VIP Stock Trading / IPO Scams**, and **Senior Citizen Account Compromise** across Indian and APAC banks (HDFC Bank, ICICI Bank, Indian Overseas Bank, SBI, DBS).
+- **Team**: Linux C group (Shruthi Jha and Sanjay)
+- **Problem**: AI-assisted triage of security and fraud alerts into explainable, evidence-backed incident briefs for BFSI risk and fraud mitigation—specifically targeting **Digital Arrest Scams**, **Fake VIP Stock Trading / IPO Scams**, and **Senior Citizen Account Compromise** across Indian and APAC banks (GDFC Bank, ICICX Bank, National Overseas Bank (NOB), Smart Bank of India (SBI), DGBS Bank).
 - **Governing Principle**: Rules establish what the data says. Gemini only explains the supplied evidence. A human analyst reviews every case; nothing is blocked, disabled, or isolated automatically.
 
 ## 2. Three Real-Time Indian & APAC Banking Use Cases
-1. **HDFC Bank / Indian Overseas Bank (IOB) — Digital Arrest Coercion & Senior Citizen FD Liquidation**:
+1. **GDFC Bank / National Overseas Bank (NOB) — Digital Arrest Coercion & Senior Citizen FD Liquidation**:
    - Correlates continuous 95-minute WhatsApp video-call overlay telemetry, panic password failures, premature breaking of 3 Senior Citizen Fixed Deposits (₹28.5L), 15x RTGS limit elevation, and a forged CBI/RBI warrant flagged by Document AI.
-2. **ICICI Bank / HDFC Bank — Fake WhatsApp/Telegram VIP QIB Stock Trading & IPO Escrow Scam**:
+2. **ICICX Bank / GDFC Bank — Fake WhatsApp/Telegram VIP QIB Stock Trading & IPO Escrow Scam**:
    - Correlates remote screen-coaching / clipboard paste velocity, cooling-period override across 3 shell agro/logistics beneficiaries, and ₹14.2L split IMPS/NEFT tranches with an invalid SEBI broker contract flagged by Document AI.
-3. **DBS Bank / SBI — Cross-Border Senior APK Account Takeover (Fake Pension Life Certificate)**:
+3. **DGBS Bank / Smart Bank of India (SBI) — Cross-Border Senior APK Account Takeover (Fake Pension Life Certificate)**:
    - Correlates repeated authentication failures, sideloaded SMS-forwarding APK telemetry, login from an unseen offshore IP, and token privilege modification staging ₹19.8L (SGD 31,500) remittance.
 
 ## 3. Google Cloud BFSI Technology Stack
@@ -54,7 +54,7 @@ export const SpecificationsView: React.FC = () => {
             SentinelFlow Blueprint: Safeguarding Senior Citizens & Combating Digital Arrest Scams
           </h2>
           <p className="text-sm text-slate-600 leading-relaxed">
-            Full functional, architectural, and responsible-AI specification mapping the AI Builder Cup deck (Team Linux C group — Sanjay T) to real-time fraud and security operations across HDFC Bank, ICICI Bank, Indian Overseas Bank (IOB), SBI, and DBS.
+            Full functional, architectural, and responsible-AI specification mapping the AI Builder Cup deck (Team Linux C group — Shruthi Jha and Sanjay) to real-time fraud and security operations across GDFC Bank, ICICX Bank, National Overseas Bank (NOB), Smart Bank of India (SBI), and DGBS Bank.
           </p>
         </div>
 
@@ -82,7 +82,7 @@ export const SpecificationsView: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="border border-slate-200 rounded-xl p-5 space-y-3 bg-slate-50/40">
             <div className="text-xs font-mono text-red-700 font-semibold">
-              SCENARIO 01 · HDFC BANK & IOB (INDIA)
+              SCENARIO 01 · GDFC BANK & NATIONAL OVERSEAS BANK (NOB)
             </div>
             <h4 className="text-base font-bold text-slate-900">
               "Digital Arrest" Coercion & Senior FD Liquidation
@@ -102,7 +102,7 @@ export const SpecificationsView: React.FC = () => {
 
           <div className="border border-slate-200 rounded-xl p-5 space-y-3 bg-slate-50/40">
             <div className="text-xs font-mono text-amber-700 font-semibold">
-              SCENARIO 02 · ICICI BANK & HDFC BANK (INDIA)
+              SCENARIO 02 · ICICX BANK & GDFC BANK
             </div>
             <h4 className="text-base font-bold text-slate-900">
               Fake WhatsApp "VIP QIB Stock Trading & IPO Escrow" Scam
@@ -122,7 +122,7 @@ export const SpecificationsView: React.FC = () => {
 
           <div className="border border-slate-200 rounded-xl p-5 space-y-3 bg-slate-50/40">
             <div className="text-xs font-mono text-blue-700 font-semibold">
-              SCENARIO 03 · DBS BANK & SBI (SINGAPORE / INDIA NRI)
+              SCENARIO 03 · DGBS BANK & SMART BANK OF INDIA (SBI)
             </div>
             <h4 className="text-base font-bold text-slate-900">
               Senior APK Account Takeover (Fake Life Certificate)

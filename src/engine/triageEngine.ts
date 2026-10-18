@@ -1,4 +1,4 @@
-import {
+import type {
   CorrelatedCase,
   GeminiIncidentBrief,
   IngestionResult,
@@ -162,7 +162,7 @@ export function parseAndValidateCSV(
     const bankEntity =
       bankEntityIdx >= 0 && parts[bankEntityIdx]
         ? parts[bankEntityIdx]
-        : 'HDFC / ICICI / IOB Fraud Desk';
+        : 'GDFC / ICICX / NOB Fraud Desk';
     const amountInr =
       amountIdx >= 0 && parts[amountIdx]
         ? Number.parseFloat(parts[amountIdx]) || 0
@@ -393,7 +393,7 @@ export function correlateEventsIntoCases(
       case_id: `CASE-${caseCounter++}`,
       title: caseTitle,
       subtitle: `${groupEvents.length} correlated events across ${firstEv.display_time} – ${lastEv.display_time}`,
-      bank_name: firstEv.bank_entity || 'HDFC / ICICI / IOB Fraud Desk',
+      bank_name: firstEv.bank_entity || 'GDFC / ICICX / NOB Fraud Desk',
       branch_region: 'APAC / India Real-Time Ingestion',
       customer_id: `CUST-${caseCounter}`,
       customer_name: firstEv.customer_name || userKey,

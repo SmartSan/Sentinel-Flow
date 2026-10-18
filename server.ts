@@ -31,9 +31,14 @@ function getGeminiClient(): GoogleGenAI {
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = Number(process.env.PORT) || 3000;
 
   app.use(express.json({ limit: '4mb' }));
+
+  // Health check endpoints for Google Cloud Run container readiness
+  app.get(['/healthz', '/api/health'], (_req, res) => {
+    res.status(200).json({ status: 'ok', service: 'SentinelFlow', timestamp: new Date().toISOString() });
+  });
 
   // 1. Server-side Gemini Incident Brief Generator + Deterministic Output Validator
   app.post('/api/triage/brief', async (req, res) => {
@@ -89,7 +94,7 @@ async function startServer() {
         contents: `Draft a structured, evidence-linked BFSI security and fraud incident brief for the following correlated case:\n${JSON.stringify(promptPayload, null, 2)}`,
         config: {
           systemInstruction:
-            'You are SentinelFlow, an AI-assisted security and fraud incident triage engine for Indian and APAC banks (HDFC Bank, ICICI Bank, Indian Overseas Bank, SBI, DBS). ' +
+            'You are SentinelFlow, an AI-assisted security and fraud incident triage engine for Indian and APAC banks (GDFC Bank, ICICX Bank, National Overseas Bank (NOB), Smart Bank of India (SBI), DGBS Bank). ' +
             'Rules establish what the data says; you ONLY explain the supplied evidence. ' +
             'CRITICAL CONSTRAINTS:\n' +
             '1. Cite ONLY real event IDs present in normalized_events (e.g., EVT-1101) and real document IDs if present (e.g., DOC-101). Never invent event IDs.\n' +
@@ -284,37 +289,37 @@ async function startServer() {
   });
 
   // 3. Simulated Cloud Pub/Sub Live Bank Stream Endpoint (Zero-Upload Real-Time Demo)
-  app.post('/api/pubsub/simulate', (req, res) => {
+  app.post('/api/pubsub/simulate', (_req, res) => {
     const presetPool = [
       {
-        bank: 'Indian Overseas Bank (IOB) — Mylapore Branch',
-        user: 'natarajan.k74@senior-iob.in',
+        bank: 'National Overseas Bank (NOB) — Mylapore Branch',
+        user: 'natarajan.k74@senior-nob.in',
         name: 'K. Natarajan',
         age: 74,
         ip: '103.88.19.204',
-        asset: 'iob-netbanking-rtgs-engine',
+        asset: 'nob-netbanking-rtgs-engine',
         amount: 2150000,
         scamType: 'digital_arrest',
       },
       {
-        bank: 'HDFC Bank — Koramangala Senior Wealth',
-        user: 'meera.krishnan69@hdfc-wealth.in',
+        bank: 'GDFC Bank — Koramangala Senior Wealth',
+        user: 'meera.krishnan69@gdfc-wealth.in',
         name: 'Meera Krishnan',
         age: 69,
         ip: '45.112.66.18',
-        asset: 'hdfc-fd-liquidation-gateway',
+        asset: 'gdfc-fd-liquidation-gateway',
         amount: 3200000,
         scamType: 'digital_arrest',
       },
       {
-        bank: 'ICICI Bank — Pune Retail Ops',
-        user: 'vijay.kulkarni66@icici-client.in',
-        name: 'Vijay Kulkarni',
-        age: 66,
+        bank: 'Smart Bank of India (SBI) — Indiranagar Senior Pension Desk',
+        user: 'raghavan.v71@smartbank-sbi.in',
+        name: 'V. Raghavan',
+        age: 71,
         ip: '115.99.201.14',
-        asset: 'icici-imps-beneficiary-hub',
-        amount: 1250000,
-        scamType: 'vip_trading',
+        asset: 'sbi-pension-fd-rtgs-hub',
+        amount: 1850000,
+        scamType: 'digital_arrest',
       },
     ];
 
@@ -352,7 +357,12 @@ async function startServer() {
     });
   });
 
-  if (process.env.NODE_ENV !== 'production') {
+  const isProduction =
+    process.env.NODE_ENV === 'production' ||
+    Boolean(process.env.K_SERVICE) ||
+    Boolean(process.env.CLOUD_RUN_JOB);
+
+  if (!isProduction) {
     const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
@@ -368,7 +378,7 @@ async function startServer() {
   }
 
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`SentinelFlow server running on http://0.0.0.0:${PORT}`);
+    console.log(`SentinelFlow server running on http://0.0.0.0:${PORT} (Production: ${isProduction})`);
   });
 }
 

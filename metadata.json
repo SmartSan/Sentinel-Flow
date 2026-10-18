@@ -1,6 +1,6 @@
 {
   "name": "SentinelFlow — BFSI Security & Scam Triage Workbench",
-  "description": "AI-assisted security and fraud incident triage workbench for Indian and APAC banks (HDFC, ICICI, IOB, DBS) to detect Digital Arrest scams, fake trading scams, and account compromise with deterministic correlation rules and evidence-verified Gemini incident briefs.",
+  "description": "AI-assisted security and fraud incident triage workbench for Indian and APAC banks (GDFC Bank, ICICX Bank, National Overseas Bank NOB, Smart Bank of India SBI, DGBS) to detect Digital Arrest scams, fake trading scams, and account compromise with deterministic correlation rules and evidence-verified Gemini incident briefs.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
