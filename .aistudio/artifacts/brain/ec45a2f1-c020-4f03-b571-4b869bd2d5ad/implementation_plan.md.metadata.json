@@ -1,0 +1,6 @@
+{
+  "summary": "Updated SentinelFlow specification and implementation plan tailored as a bank-side security and fraud triage workbench to detect and prevent Digital Arrest scams, Fake VIP Trading/IPO scams, and Remote-Access Elderly Financial Exploitation across major Indian & APAC banks (HDFC Bank, ICICI Bank, Indian Overseas Bank, SBI, DBS). Preserves SentinelFlow's deterministic correlation rules, schema-bound Gemini incident briefs, code-level EVT-ID output validation, full Google Cloud stack integration, and adds an Empathetic Elderly Intervention & Funds-Saved workflow.",
+  "updatedAt": "2026-10-18T08:12:36.747977245Z",
+  "requestFeedback": true,
+  "userFacing": true
+}
