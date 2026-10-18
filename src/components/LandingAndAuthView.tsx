@@ -24,6 +24,43 @@ interface LandingAndAuthViewProps {
   onClearSignedOutMessage?: () => void;
 }
 
+export const SentinelFlowLogo: React.FC = () => (
+  <span className="inline-flex items-center gap-2.5 whitespace-nowrap shrink-0">
+    <svg
+      width="28"
+      height="28"
+      viewBox="0 0 32 32"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+      className="shrink-0"
+    >
+      {/* Outer Institutional Shield */}
+      <path
+        d="M16 2.5L4.5 7.2V15.4C4.5 22.6 9.4 28.9 16 30.5C22.6 28.9 27.5 22.6 27.5 15.4V7.2L16 2.5Z"
+        fill="#1D4ED8"
+      />
+      {/* Inner Sovereign Navy Core */}
+      <path
+        d="M16 5.2L7 9.1V15.3C7 21.1 10.8 26.2 16 27.7C21.2 26.2 25 21.1 25 15.3V9.1L16 5.2Z"
+        fill="#0A1931"
+      />
+      {/* Context-Aware Signal Flow & Interception Node */}
+      <path
+        d="M9.5 16.5H13L14.8 12.2L17.4 20.2L19.3 16.5H22.5"
+        stroke="#60A5FA"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <circle cx="16" cy="10" r="1.6" fill="#FFFFFF" />
+    </svg>
+    <span className="text-lg font-bold tracking-tight text-blue-950 font-display">
+      SentinelFlow
+    </span>
+  </span>
+);
+
 interface SpecimenPreview {
   caseId: string;
   bank: string;
@@ -323,9 +360,9 @@ export const LandingAndAuthView: React.FC<LandingAndAuthViewProps> = ({
               e.preventDefault();
               setViewMode('landing');
             }}
-            className="text-lg font-bold tracking-tight text-blue-950 whitespace-nowrap shrink-0 font-display"
+            className="whitespace-nowrap shrink-0"
           >
-            SentinelFlow
+            <SentinelFlowLogo />
           </a>
 
           <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-slate-600">
@@ -599,12 +636,12 @@ export const LandingAndAuthView: React.FC<LandingAndAuthViewProps> = ({
     <div className="min-h-screen flex flex-col bg-[#F8FAFC] text-slate-900">
       {/* Top Bar Contract: Strictly 3 Zones separated by gap-8 */}
       <header className="bg-white/95 backdrop-blur-xs border-b border-slate-200 px-6 py-4 flex items-center justify-between gap-8 sticky top-0 z-30">
-        {/* Zone 1: Single text element wordmark */}
+        {/* Zone 1: Brand mark with logo and wordmark */}
         <a
           href="#top"
-          className="text-lg font-bold tracking-tight text-blue-950 whitespace-nowrap shrink-0 font-display"
+          className="whitespace-nowrap shrink-0"
         >
-          SentinelFlow
+          <SentinelFlowLogo />
         </a>
 
         {/* Zone 2: 4 concise single-line navigation links */}
@@ -686,13 +723,13 @@ export const LandingAndAuthView: React.FC<LandingAndAuthViewProps> = ({
               </h1>
 
               <p className="text-base sm:text-lg font-medium text-blue-900 max-w-2xl">
-                Don’t just react after life savings vanish—prevent the breach in real time. Stay a step ahead in the AI age with human-governed, context-aware scam and threat interception.
+                Using Google Gemini advanced model interpretation, freeze suspicious transfers before the amount is lost. Don’t just react—stay a step ahead in the AI age and prevent the breach in real time.
               </p>
             </div>
 
             <div className="lg:col-span-4 space-y-6">
               <p className="text-sm text-slate-600 leading-relaxed">
-                Legacy banking rules pass when a coerced senior citizen types their own OTP. SentinelFlow plugs directly into your existing Core Banking, SIEM, and RTGS switches—correlating call coercion, sudden FD breaks, and forged warrants into code-verified Gemini briefs before funds clear.
+                Legacy banking rules pass when a coerced senior citizen types their own OTP. SentinelFlow plugs into your existing Core Banking, SIEM, and RTGS switches—using Google Gemini advanced model interpretation to correlate call coercion, sudden FD breaks, and forged warrants so analysts can freeze the transfer before customer savings are lost.
               </p>
 
               <div className="flex flex-wrap items-center gap-3">

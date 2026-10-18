@@ -13,6 +13,7 @@ import { EvaluationView } from './components/EvaluationView.tsx';
 import { SpecificationsView } from './components/SpecificationsView.tsx';
 import {
   LandingAndAuthView,
+  SentinelFlowLogo,
   type AnalystSession,
 } from './components/LandingAndAuthView.tsx';
 import {
@@ -34,13 +35,13 @@ type ActiveTab = 'triage' | 'ingestion' | 'evaluation' | 'specs';
 type ScenarioFilter = 'all' | 'india_apac_scam' | 'deck_wireframe';
 type GcpContextTab = 'bigquery' | 'document_ai' | 'vertex_runbook';
 
-const STORAGE_KEY = 'sentinelflow_cases_v3';
-const SESSION_STORAGE_KEY = 'sentinelflow_session_v1';
+const STORAGE_KEY = 'sentinelflow_cases_v5';
+const SESSION_STORAGE_KEY = 'sentinelflow_session_v5';
 
 export default function App() {
   const [session, setSession] = useState<AnalystSession | null>(() => {
     try {
-      const saved = localStorage.getItem(SESSION_STORAGE_KEY);
+      const saved = sessionStorage.getItem(SESSION_STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
         if (parsed && typeof parsed.email === 'string') {
@@ -95,7 +96,7 @@ export default function App() {
     setSession(newSession);
     setSignedOutMessage(null);
     try {
-      localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(newSession));
+      sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(newSession));
     } catch {
       // Ignore storage quota issues
     }
@@ -115,7 +116,7 @@ export default function App() {
     );
     setSession(null);
     try {
-      localStorage.removeItem(SESSION_STORAGE_KEY);
+      sessionStorage.removeItem(SESSION_STORAGE_KEY);
     } catch {
       // Ignore storage issues
     }
@@ -358,16 +359,16 @@ export default function App() {
     <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900">
       {/* Top Bar Contract: Strictly 3 Zones separated by gap-8 */}
       <header className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between gap-8 sticky top-0 z-30">
-        {/* Zone 1: Single text element wordmark */}
+        {/* Zone 1: Brand mark with logo and wordmark */}
         <a
           href="#triage"
           onClick={(e) => {
             e.preventDefault();
             setActiveTab('triage');
           }}
-          className="text-lg font-bold tracking-tight text-slate-900 whitespace-nowrap shrink-0 font-display"
+          className="whitespace-nowrap shrink-0"
         >
-          SentinelFlow
+          <SentinelFlowLogo />
         </a>
 
         {/* Zone 2: 4 concise single-line navigation links */}
